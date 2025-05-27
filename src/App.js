@@ -15,6 +15,7 @@ import ScanTable from './pages/ScanTable';
 import BillingPage from './pages/BillingPage';
 import Procurement from './pages/Procurement';
 import QRCodeGenerator from './pages/QRCodeGenerator';
+import CustomerMenu from './pages/CustomerMenu';
 
 
 // Import ProtectedRoute wrapper
@@ -86,6 +87,7 @@ function App() {
         />
         <Route path="/scan" element={<ScanTable />} />
         <Route path="/generate-qr" element={<QRCodeGenerator />} /> {/* ✅ Now valid */}
+        <Route path="/customer-menu" element={<CustomerMenu />} />
         <Route
           path="/billing"
           element={
