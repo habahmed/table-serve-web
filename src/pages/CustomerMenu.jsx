@@ -1,41 +1,47 @@
-// ✅ src/pages/CustomerMenu.jsx
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// ✅ src/pages/CustomerMenu.jsx (Clean & Final)
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function CustomerMenu() {
-  const { menu, table, setTable } = useUser();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [table, setTable] = useState('');
+  const { menu } = useUser();
 
+  // ✅ Auto-detect table from query
   useEffect(() => {
-    if (!table) {
-      // ⛔ If no table is assigned, redirect to scan
-      navigate('/scan');
+    const scannedTable = searchParams.get('table');
+    if (scannedTable && scannedTable.startsWith('T')) {
+      setTable(scannedTable);
+      localStorage.setItem('table', scannedTable); // store if needed later
     }
-  }, [table, navigate]);
+  }, [searchParams]);
+
+  if (!table) return <p style={{ padding: 20 }}>⏳ Loading or invalid table...</p>;
+
+  const link = `${window.location.origin}/customer-menu?table=${table}`;
 
   return (
-    <div style={{ padding: 20, color: 'var(--text-color)' }}>
-      {/* ✅ Sticky header */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        position: 'sticky', top: 0, background: 'var(--bg-color)', paddingBottom: 10, zIndex: 10
-      }}>
-        <h2>🍽️ Table {table}</h2>
-        <button onClick={() => { setTable(null); localStorage.removeItem('table'); navigate('/scan'); }}>
-          🔄 Change Table
-        </button>
+    <div style={{ padding: 20 }}>
+      <h2>🍽️ Welcome to Table {table}</h2>
+      <p>Scan this QR code next time or bookmark the link.</p>
+
+      {/* ✅ QR Code for this table */}
+      <div style={{ marginBottom: 20 }}>
+        <QRCodeSVG value={link} size={180} />
+        <p style={{ fontSize: 14, marginTop: 8 }}>{link}</p>
       </div>
 
-      {/* ✅ Menu Listing */}
+      {/* ✅ Read-only Menu */}
+      <h3>📜 Menu</h3>
       {Object.entries(menu).map(([category, items]) => (
         <div key={category} style={{ marginBottom: 20 }}>
-          <h3>{category}</h3>
-          <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
+          <h4>{category}</h4>
+          <ul>
             {items.map((item, i) => (
-              <li key={i} style={{ padding: 8, borderBottom: '1px solid #ccc' }}>
-                <span>{item.name}</span>
-                <span style={{ float: 'right' }}>₹{item.price}</span>
+              <li key={i}>
+                {item.name} — ₹{item.price}
               </li>
             ))}
           </ul>
