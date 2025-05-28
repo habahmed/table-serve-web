@@ -1,93 +1,120 @@
-// ✅ src/pages/CustomerMenu.jsx (Final)
+// ✅ src/pages/CustomerMenu.jsx (Final with KOT & Table Update Fix)
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
+import { useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import { useUser } from '../context/UserContext';
 
 export default function CustomerMenu() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [table, setTable] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [quantities, setQuantities] = useState({});
-  const [confirmation, setConfirmation] = useState('');
-  const { menu, addOrderToKOT, updateTableStatus } = useUser();
+  const [orderPlaced, setOrderPlaced] = useState(false);
 
-  // ✅ Detect table from ?table=T1
+  const {
+    menu,
+    user,
+    login, // ✅ auto-login for customers
+    addOrderToKOT,
+    updateTableStatus
+  } = useUser();
+
+  // ✅ Detect ?table param and assign to context + login
   useEffect(() => {
     const scannedTable = searchParams.get('table');
     if (scannedTable?.startsWith('T')) {
       setTable(scannedTable);
       localStorage.setItem('table', scannedTable);
+
+      // ✅ Automatically assign a lightweight customer user
+      login(`customer-${scannedTable}`, 'customer');
     }
-  }, [searchParams]);
+  }, [searchParams, login]);
 
-  const handleScanConfirm = () => {
-    setShowMenu(true);
+  // 🧮 Quantity update
+  const handleQtyChange = (itemName, value) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [itemName]: parseInt(value) || 0,
+    }));
   };
 
-  const handleChange = (itemName, qty) => {
-    setQuantities(prev => ({ ...prev, [itemName]: parseInt(qty) || 0 }));
-  };
+  // ✅ Submit order
+  const handleOrderSubmit = () => {
+    const selectedItems = [];
 
-  const handlePlaceOrder = () => {
-    const orderedItems = [];
     Object.entries(quantities).forEach(([name, qty]) => {
       if (qty > 0) {
-        // Find price from menu
-        const price = Object.values(menu).flat().find(i => i.name === name)?.price || 0;
-        orderedItems.push({ name, quantity: qty, price });
+        const item = Object.values(menu).flat().find(i => i.name === name);
+        if (item) {
+          selectedItems.push({
+            name: item.name,
+            quantity: qty,
+            price: item.price
+          });
+        }
       }
     });
 
-    if (orderedItems.length > 0) {
-      addOrderToKOT(table, orderedItems, `customer-${table}`);
+    if (selectedItems.length > 0 && table) {
+      // ✅ Add to KOT with placedBy as customer-table
+      addOrderToKOT(table, selectedItems, `customer-${table}`);
       updateTableStatus(table, 'Occupied');
-      setConfirmation('✅ Order Placed! Thank you 🙌');
-      setQuantities({});
-      setTimeout(() => navigate('/thank-you'), 2000); // optional thank you page
+      setOrderPlaced(true);
+      setTimeout(() => window.location.reload(), 5000);
     }
   };
 
-  if (!table) return <p style={{ padding: 20 }}>⏳ Loading or invalid table...</p>;
+  const link = `${window.location.origin}/customer-menu?table=${table}`;
 
-  const qrLink = `${window.location.origin}/customer-menu?table=${table}`;
+  if (!table) return <p style={{ padding: 20 }}>⏳ Loading or invalid table...</p>;
 
   return (
     <div style={{ padding: 20 }}>
       <h2>🍽️ Welcome to Table {table}</h2>
 
-      {!showMenu ? (
+      {!showMenu && !orderPlaced && (
         <>
-          <p>📲 Please scan this QR on another device to order.</p>
-          <QRCodeSVG value={qrLink} size={200} />
-          <div style={{ marginTop: 20 }}>
-            <button onClick={handleScanConfirm}>✅ I’ve Scanned</button>
-          </div>
+          <p>📲 Scan this QR to place your order.</p>
+          <QRCodeSVG value={link} size={200} />
+          <p style={{ fontSize: 14, marginTop: 10 }}>{link}</p>
+          <button onClick={() => setShowMenu(true)} style={{ marginTop: 20 }}>
+            📥 Start Ordering
+          </button>
         </>
-      ) : (
+      )}
+
+      {showMenu && !orderPlaced && (
         <>
-          <h3>📜 Menu</h3>
+          <h3 style={{ marginTop: 30 }}>📝 Select Your Items</h3>
           {Object.entries(menu).map(([category, items]) => (
             <div key={category} style={{ marginBottom: 20 }}>
               <h4>{category}</h4>
               {items.map((item) => (
-                <div key={item.name} style={{ marginBottom: 5 }}>
-                  {item.name} — ₹{item.price}{' '}
+                <div key={item.name}>
+                  {item.name} — ₹{item.price}
                   <input
                     type="number"
-                    min="0"
+                    min={0}
                     value={quantities[item.name] || ''}
-                    onChange={(e) => handleChange(item.name, e.target.value)}
+                    onChange={(e) => handleQtyChange(item.name, e.target.value)}
                     style={{ width: 60, marginLeft: 10 }}
                   />
                 </div>
               ))}
             </div>
           ))}
-          <button onClick={handlePlaceOrder}>🛒 Confirm Order</button>
-          {confirmation && <p style={{ marginTop: 10, color: 'green' }}>{confirmation}</p>}
+          <button onClick={handleOrderSubmit} style={{ marginTop: 20 }}>
+            ✅ Confirm Order
+          </button>
         </>
+      )}
+
+      {orderPlaced && (
+        <div style={{ marginTop: 30 }}>
+          <h3>✅ Thank you! Your order has been placed.</h3>
+          <p>This page will refresh automatically.</p>
+        </div>
       )}
     </div>
   );

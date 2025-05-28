@@ -155,6 +155,8 @@ export function UserProvider({ children }) {
       status: 'Pending'
     };
     deductStock(items);
+    // ✅ Mark table as occupied when order is placed
+    updateTableStatus(tableId, 'Occupied');
     setKOTList(prev => {
       const updated = [...prev, newOrder];
       localStorage.setItem('kotList', JSON.stringify(updated));
