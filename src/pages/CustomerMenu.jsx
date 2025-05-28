@@ -1,6 +1,6 @@
-// ✅ src/pages/CustomerMenu.jsx (Updated for order + redirect)
+// ✅ src/pages/CustomerMenu.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -8,76 +8,85 @@ export default function CustomerMenu() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { menu, addOrderToKOT, updateTableStatus } = useUser();
+
   const [table, setTable] = useState('');
-  const [quantities, setQuantities] = useState({});
-  const [submitted, setSubmitted] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [selectedItems, setSelectedItems] = useState({});
+  const [orderPlaced, setOrderPlaced] = useState(false);
 
   useEffect(() => {
-    const scannedTable = searchParams.get('table');
-    if (scannedTable?.startsWith('T')) {
-      setTable(scannedTable);
-      localStorage.setItem('table', scannedTable);
+    const scanned = searchParams.get('table');
+    if (scanned?.startsWith('T')) {
+      setTable(scanned);
+      localStorage.setItem('table', scanned);
     }
   }, [searchParams]);
 
-  const handleChange = (item, qty) => {
-    setQuantities(prev => ({ ...prev, [item.name]: qty }));
+  const handleQuantityChange = (itemName, qty) => {
+    setSelectedItems((prev) => ({ ...prev, [itemName]: qty }));
   };
 
-  const handleSubmit = () => {
-    const items = Object.entries(quantities)
+  const handleConfirmOrder = () => {
+    const items = Object.entries(selectedItems)
       .filter(([_, qty]) => qty > 0)
       .map(([name, quantity]) => {
-        const found = Object.values(menu).flat().find(i => i.name === name);
-        return { name, quantity, price: found?.price || 0 };
+        let price = 0;
+        for (const catItems of Object.values(menu)) {
+          const found = catItems.find((i) => i.name === name);
+          if (found) price = found.price;
+        }
+        return { name, quantity, price };
       });
 
-    if (items.length && table) {
-      addOrderToKOT(table, items, 'Customer');
-      updateTableStatus(table, 'Occupied'); // ✅ Mark table
-      setSubmitted(true);
-      setTimeout(() => navigate(`/customer-status?table=${table}`), 2000); // ✅ Redirect
+    if (items.length) {
+      addOrderToKOT(table, items, `Customer-${table}`);
+      updateTableStatus(table, 'Occupied');
+      setOrderPlaced(true);
+      setTimeout(() => {
+        navigate(`/customer-status?table=${table}`);
+      }, 1200);
     }
   };
 
-  const link = `${window.location.origin}/customer-menu?table=${table}`;
-  if (!table) return <p>⏳ Waiting for table info...</p>;
+  const fullURL = `${window.location.origin}/customer-menu?table=${table}`;
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>📲 Table {table}</h2>
+      <h2>🍽️ Welcome to Table {table || '...'}</h2>
 
-      {!submitted && (
+      {!showMenu && !orderPlaced && (
+        <div>
+          <p>Scan this QR code to access the menu:</p>
+          <QRCodeSVG value={fullURL} size={200} />
+          <p style={{ fontSize: 14 }}>{fullURL}</p>
+          <button onClick={() => setShowMenu(true)} style={{ marginTop: 20 }}>📥 Start Ordering</button>
+        </div>
+      )}
+
+      {showMenu && !orderPlaced && (
         <>
-          <div style={{ marginBottom: 20 }}>
-            <p>📸 Scan this to access menu later:</p>
-            <QRCodeSVG value={link} size={160} />
-          </div>
-
-          <h3>🧾 Select Your Order</h3>
+          <h3>📋 Menu</h3>ß
           {Object.entries(menu).map(([category, items]) => (
-            <div key={category} style={{ marginBottom: 20 }}>
+            <div key={category} style={{ marginBottom: 15 }}>
               <h4>{category}</h4>
-              {items.map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ flex: 1 }}>{item.name} — ₹{item.price}</span>
+              {items.map((item) => (
+                <div key={item.name}>
+                  {item.name} — ₹{item.price}
                   <input
                     type="number"
-                    min="0"
-                    value={quantities[item.name] || ''}
-                    onChange={e => handleChange(item, parseInt(e.target.value || 0))}
-                    style={{ width: 60 }}
+                    value={selectedItems[item.name] || ''}
+                    onChange={(e) => handleQuantityChange(item.name, parseInt(e.target.value || 0))}
+                    style={{ width: 50, marginLeft: 10 }}
                   />
                 </div>
               ))}
             </div>
           ))}
-
-          <button onClick={handleSubmit} style={{ marginTop: 20 }}>✅ Confirm Order</button>
+          <button onClick={handleConfirmOrder} style={{ marginTop: 10 }}>✅ Confirm Order</button>
         </>
       )}
 
-      {submitted && <p>🎉 Order placed! Redirecting...</p>}
+      {orderPlaced && <h3 style={{ color: 'green' }}>✅ Order Placed! Redirecting...</h3>}
     </div>
   );
 }
