@@ -1,93 +1,117 @@
-// ✅ src/pages/CustomerMenu.jsx — Final Clean Version with QR + Order Flow
-
+// ✅ src/pages/CustomerMenu.jsx (Final Version)
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
 import { QRCodeSVG } from 'qrcode.react';
+import { useUser } from '../context/UserContext';
 
 export default function CustomerMenu() {
   const [searchParams] = useSearchParams();
   const [table, setTable] = useState('');
-  const [selectedItems, setSelectedItems] = useState({});
-  const { menu, addOrderToKOT } = useUser();
+  const [showMenu, setShowMenu] = useState(false);
+  const [quantities, setQuantities] = useState({});
+  const [orderPlaced, setOrderPlaced] = useState(false);
 
-  // ✅ Detect table from ?table=T1 in URL
+  const {
+    menu,
+    addOrderToKOT,
+    updateTableStatus
+  } = useUser();
+
+  // ✅ Get ?table param from URL
   useEffect(() => {
     const scannedTable = searchParams.get('table');
-    if (scannedTable && scannedTable.startsWith('T')) {
+    if (scannedTable?.startsWith('T')) {
       setTable(scannedTable);
       localStorage.setItem('table', scannedTable);
     }
   }, [searchParams]);
 
-  // ❌ Show message if table not set
-  if (!table) return <p style={{ padding: 20 }}>⏳ Loading or invalid table...</p>;
-
-  // ✅ Update selection for item
-  const handleSelect = (itemName, quantity, price) => {
-    setSelectedItems((prev) => ({
+  // 🧮 Handle quantity update
+  const handleQtyChange = (itemName, value) => {
+    setQuantities((prev) => ({
       ...prev,
-      [itemName]: { quantity: parseInt(quantity), price }
+      [itemName]: parseInt(value) || 0,
     }));
   };
 
-  // ✅ Place order using context KOT
-  const handlePlaceOrder = () => {
-    const items = Object.entries(selectedItems).map(([name, data]) => ({
-      name,
-      quantity: data.quantity,
-      price: data.price
-    }));
+  // ✅ Confirm Order and update KOT
+  const handleOrderSubmit = () => {
+    const selectedItems = [];
 
-    if (items.length > 0 && table) {
-      addOrderToKOT(table, items, 'Customer');
-      alert(`✅ Order placed for ${table}`);
-      setSelectedItems({});
+    Object.entries(quantities).forEach(([name, qty]) => {
+      if (qty > 0) {
+        // Find the item price from menu
+        const item = Object.values(menu).flat().find(i => i.name === name);
+        if (item) {
+          selectedItems.push({
+            name: item.name,
+            quantity: qty,
+            price: item.price
+          });
+        }
+      }
+    });
+
+    if (selectedItems.length > 0 && table) {
+      addOrderToKOT(table, selectedItems, `customer-${table}`);
+      updateTableStatus(table, 'Occupied');
+      setOrderPlaced(true);
+      setTimeout(() => window.location.reload(), 5000); // ✅ Auto-refresh
     }
   };
 
-  const qrLink = `${window.location.origin}/customer-menu?table=${table}`;
+  // 🔁 Construct QR link
+  const link = `${window.location.origin}/customer-menu?table=${table}`;
+
+  if (!table) return <p style={{ padding: 20 }}>⏳ Loading or invalid table...</p>;
 
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: 'auto' }}>
-      {/* 🔘 Table and QR code */}
-      <h2>🍽️ Table: {table}</h2>
-      <p>Scan this QR to come back here:</p>
-      <div style={{ marginBottom: 20 }}>
-        <QRCodeSVG value={qrLink} size={180} />
-        <p style={{ fontSize: 14, marginTop: 8 }}>{qrLink}</p>
-      </div>
+    <div style={{ padding: 20 }}>
+      <h2>🍽️ Table {table}</h2>
 
-      {/* 🔘 Menu with selection */}
-      <h3>📜 Menu</h3>
-      {Object.entries(menu).map(([category, items]) => (
-        <div key={category} style={{ marginBottom: 25 }}>
-          <h4>{category}</h4>
-          {items.map(({ name, price }) => (
-            <div key={name} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ flex: 1 }}>{name} - ₹{price}</span>
-              <select
-                value={selectedItems[name]?.quantity || ''}
-                onChange={(e) => handleSelect(name, e.target.value, price)}
-              >
-                <option value="">Qty</option>
-                {[1, 2, 3, 4, 5].map(q => (
-                  <option key={q} value={q}>{q}</option>
-                ))}
-              </select>
+      {!showMenu && !orderPlaced && (
+        <>
+          <p>Scan this QR code to place your order.</p>
+          <QRCodeSVG value={link} size={200} />
+          <p style={{ fontSize: 14, marginTop: 10 }}>{link}</p>
+          <button onClick={() => setShowMenu(true)} style={{ marginTop: 20 }}>
+            📥 Start Ordering
+          </button>
+        </>
+      )}
+
+      {showMenu && !orderPlaced && (
+        <>
+          <h3 style={{ marginTop: 30 }}>📝 Select Your Items</h3>
+          {Object.entries(menu).map(([category, items]) => (
+            <div key={category} style={{ marginBottom: 20 }}>
+              <h4>{category}</h4>
+              {items.map((item) => (
+                <div key={item.name}>
+                  {item.name} — ₹{item.price}
+                  <input
+                    type="number"
+                    min={0}
+                    value={quantities[item.name] || ''}
+                    onChange={(e) => handleQtyChange(item.name, e.target.value)}
+                    style={{ width: 60, marginLeft: 10 }}
+                  />
+                </div>
+              ))}
             </div>
           ))}
-        </div>
-      ))}
+          <button onClick={handleOrderSubmit} style={{ marginTop: 20 }}>
+            ✅ Confirm Order
+          </button>
+        </>
+      )}
 
-      {/* 🔘 Place order */}
-      <button
-        onClick={handlePlaceOrder}
-        disabled={Object.keys(selectedItems).length === 0}
-        style={{ marginTop: 10 }}
-      >
-        ✅ Confirm Order
-      </button>
+      {orderPlaced && (
+        <div style={{ marginTop: 30 }}>
+          <h3>✅ Thank you! Your order has been placed.</h3>
+          <p>We’ll serve you shortly. This page will refresh automatically.</p>
+        </div>
+      )}
     </div>
   );
 }
