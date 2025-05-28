@@ -9,14 +9,15 @@ export default function ScanTable() {
   const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState('');
 
-  // ✅ Auto-detect table from query
+  // ✅ Replace navigate('/menu') → navigate('/customer-menu') in ScanTable.jsx
+
   useEffect(() => {
     const scannedTable = searchParams.get('table');
     if (scannedTable && scannedTable.startsWith('T')) {
       setSelected(scannedTable);
       setTable(scannedTable);
       localStorage.setItem('table', scannedTable);
-      navigate('/menu');
+      navigate('/customer-menu'); // ✅ redirect here
     }
   }, [searchParams, setTable, navigate]);
 
