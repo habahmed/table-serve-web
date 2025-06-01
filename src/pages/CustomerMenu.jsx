@@ -34,7 +34,8 @@ export default function CustomerMenu() {
     }));
   };
 
-  // ✅ Order Confirmation Logic
+  // 🔁 Inside handleConfirmOrder in CustomerMenu.jsx
+
   const handleConfirmOrder = () => {
     const items = Object.entries(selectedItems)
       .filter(([_, qty]) => qty > 0)
@@ -47,13 +48,31 @@ export default function CustomerMenu() {
         return { name, quantity, price };
       });
 
-    if (items.length > 0) {
-      addOrderToKOT(table, items, `Customer-${table}`);       // ✅ Add to KOT
-      updateTableStatus(table, 'Occupied');                   // ✅ Mark table as occupied
-      setOrderPlaced(true);                                   // 🔄 Show confirmation message
-      setTimeout(() => {
-        navigate(`/customer-status?table=${table}`);          // 🔁 Redirect after 1.2s
-      }, 1200);
+    if (items.length) {
+      const orderData = {
+        id: Date.now(),
+        table,
+        items,
+        placedBy: `Customer-${table}`,
+        time: new Date().toLocaleTimeString(),
+        status: 'Pending'
+      };
+
+      addOrderToKOT(table, items, `Customer-${table}`); // Vercel/local context
+      updateTableStatus(table, 'Occupied');
+      setOrderPlaced(true);
+
+      // ✅ NEW: send to localhost API
+      fetch('http://localhost:5000/api/sync-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      })
+        .then(res => res.json())
+        .then(console.log)
+        .catch(console.error);
+
+      setTimeout(() => navigate(`/customer-status?table=${table}`), 1200);
     }
   };
 

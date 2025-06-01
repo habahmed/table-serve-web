@@ -1,45 +1,38 @@
-// ✅ src/context/UserContext.js
+// ✅ /src/context/UserContext.js (Full Final Version with Status Progression & Persistent History)
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import jsPDF from 'jspdf'; // 📄 For exporting stock report PDF
+import jsPDF from 'jspdf';
 
 const UserContext = createContext();
 
 export function UserProvider({ children }) {
-  // 👤 User details
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [table, setTable] = useState(null);
-
-  // 🍽️ Orders & KOT (Kitchen Order Tickets)
   const [orders, setOrders] = useState([]);
   const [kotList, setKOTList] = useState([]);
+  const [orderHistory, setOrderHistory] = useState([]); // ✅ Stores all historical orders
+  const [restockHistory, setRestockHistory] = useState([]);
+  const [stock, setStock] = useState(() => ({
+    chicken: 50, paneer: 20, spices: 10, butter: 5, cream: 5,
+    riceFlour: 10, tea: 2, milk: 5, Fish: 5, Prawns: 5,
+    Lamb: 5, Mutton: 5, Coffee: 5
+  }));
 
-  // 🪑 Table Statuses (Available / Occupied etc.)
   const [tableStatuses, setTableStatuses] = useState(() => {
     const initial = {};
     for (let i = 1; i <= 12; i++) initial[`T${i}`] = 'Available';
     return initial;
   });
 
-  // 📦 Stock and Procurement
-  const [stock, setStock] = useState(() => ({
-    chicken: 50,
-    paneer: 20,
-    spices: 10,
-    butter: 5,
-    cream: 5,
-    riceFlour: 10,
-    tea: 2,
-    milk: 5,
-    Fish: 5,
-    Prawns: 5,
-    Lamb: 5,
-    Mutton: 5,
-    Coffee: 5
-  }));
-  const [restockHistory, setRestockHistory] = useState([]);
+  const ingredientMap = {
+    'Chicken 65': { chicken: 1, spices: 0.2 },
+    'Paneer 65': { paneer: 1, spices: 0.2 },
+    'Butter Chicken': { chicken: 1, butter: 0.2, cream: 0.1, spices: 0.2 },
+    'Dosa': { riceFlour: 0.5 },
+    'Idli': { riceFlour: 0.3 },
+    'Irani Chai': { tea: 0.1, milk: 0.2 }
+  };
 
-  // 🧾 Menu
   const menu = {
     "NON-VEG STARTERS": [ { name: "Haleem", price: 150 }, { name: "Chicken 65", price: 120 }, { name: "Chilli Chicken", price: 130 }, { name: "Pepper Chicken", price: 140 }, { name: "Chicken Manchuria(Dry/Gravy)", price: 135 }, { name: "Chicken Lollipop", price: 140 }, { name: "Fish Pakora", price: 160 }, { name: "Apollo Fish", price: 180 }, { name: "Masala Fish", price: 160 }, { name: "Chilli Garlic Prawns", price: 190 }, { name: "Golden Fried Prawns", price: 200 }],
     "VEG STARTERS": [ { name: "Veg Samosa", price: 60 }, { name: "Spring Roll", price: 70 }, { name: "Cilli Paneer", price: 100 }, { name: "Paneer 65", price: 110 }, { name: "Veg Manchuria(Dry/Gravy)", price: 95 }],
@@ -50,65 +43,58 @@ export function UserProvider({ children }) {
     "DRINKS": [ { name: "Irani Chai", price: 30 }, { name: "Coffee", price: 35 }, { name: "Zeera Soda", price: 25 }]
   };
 
-  // 🧂 Ingredients usage per item
-  const ingredientMap = {
-    "Chicken 65": { chicken: 1, spices: 0.2 },
-    "Paneer 65": { paneer: 1, spices: 0.2 },
-    "Butter Chicken": { chicken: 1, butter: 0.2, cream: 0.1, spices: 0.2 },
-    "Dosa": { riceFlour: 0.5 },
-    "Irani Chai": { tea: 0.1, milk: 0.2 }
-    // ➕ Extend as needed
-  };
-
-  // 🔁 Load from localStorage on mount
+  // 🔁 Restore from localStorage
   useEffect(() => {
-    const restore = (key, setter, parseJson = true) => {
-      const saved = localStorage.getItem(key);
-      if (saved) setter(parseJson ? JSON.parse(saved) : saved);
+    const restore = (key, setter, parse = true) => {
+      const val = localStorage.getItem(key);
+      if (val) setter(parse ? JSON.parse(val) : val);
     };
-
-    restore("user", setUser);
-    restore("role", setRole, false);
-    restore("table", setTable, false);
-    restore("tableStatuses", setTableStatuses);
-    restore("kotList", setKOTList);
-    restore("stock", setStock);
-    restore("restockHistory", setRestockHistory);
+    restore('user', setUser);
+    restore('role', setRole, false);
+    restore('table', setTable, false);
+    restore('kotList', setKOTList);
+    restore('tableStatuses', setTableStatuses);
+    restore('orderHistory', setOrderHistory);
+    restore('stock', setStock);
+    restore('restockHistory', setRestockHistory);
   }, []);
 
-  // ✅ Login function
+  // 🔁 Sync across tabs
+  useEffect(() => {
+    const sync = (e) => {
+      if (e.key === 'kotList') setKOTList(JSON.parse(e.newValue));
+      if (e.key === 'tableStatuses') setTableStatuses(JSON.parse(e.newValue));
+      if (e.key === 'orderHistory') setOrderHistory(JSON.parse(e.newValue));
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+
   const login = (username, role) => {
-    const userData = { username, role };
-    setUser(userData);
-    setRole(role);
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("role", role);
+    const u = { username, role };
+    setUser(u); setRole(role);
+    localStorage.setItem('user', JSON.stringify(u));
+    localStorage.setItem('role', role);
   };
 
-  // ✅ Logout and reset everything
   const logout = () => {
-    setUser(null);
-    setRole(null);
-    setTable(null);
-    setOrders([]);
-    setKOTList([]);
+    setUser(null); setRole(null); setTable(null);
+    setOrders([]); setKOTList([]);
     localStorage.clear();
   };
 
-  // ✅ Update a table's status
   const updateTableStatus = (tableId, status) => {
-    setTableStatuses((prev) => {
+    setTableStatuses(prev => {
       const updated = { ...prev, [tableId]: status };
-      localStorage.setItem("tableStatuses", JSON.stringify(updated));
+      localStorage.setItem('tableStatuses', JSON.stringify(updated));
       return updated;
     });
   };
 
-  // ✅ Deduct ingredients based on items
   const deductStock = (items) => {
-    setStock((prev) => {
+    setStock(prev => {
       const updated = { ...prev };
-      items.forEach((item) => {
+      items.forEach(item => {
         const ingredients = ingredientMap[item.name];
         if (ingredients) {
           Object.entries(ingredients).forEach(([ing, qty]) => {
@@ -116,12 +102,32 @@ export function UserProvider({ children }) {
           });
         }
       });
-      localStorage.setItem("stock", JSON.stringify(updated));
+      localStorage.setItem('stock', JSON.stringify(updated));
       return updated;
     });
   };
 
-  // ✅ Add order to KOT + deduct stock + mark table occupied
+  const recordRestock = (item, qty) => {
+    const log = { item, qty: parseInt(qty), time: new Date().toLocaleString() };
+    setRestockHistory(prev => {
+      const updated = [...prev, log];
+      localStorage.setItem('restockHistory', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const generateStockReport = () => {
+    const doc = new jsPDF();
+    doc.text('📦 Stock Report', 10, 10);
+    let y = 20;
+    for (const [item, qty] of Object.entries(stock)) {
+      doc.text(`${item}: ${qty}`, 10, y);
+      y += 10;
+    }
+    doc.save('stock_report.pdf');
+  };
+
+  // ✅ Add new order (KOT + history)
   const addOrderToKOT = (tableId, items, placedBy) => {
     const newOrder = {
       id: Date.now(),
@@ -129,84 +135,86 @@ export function UserProvider({ children }) {
       items: items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
       placedBy,
       time: new Date().toLocaleTimeString(),
-      status: "Pending"
+      status: 'Pending'
     };
 
     deductStock(items);
-    updateTableStatus(tableId, "Occupied");
+    updateTableStatus(tableId, 'Occupied');
 
-    setKOTList((prev) => {
+    setKOTList(prev => {
       const updated = [...prev, newOrder];
-      localStorage.setItem("kotList", JSON.stringify(updated));
+      localStorage.setItem('kotList', JSON.stringify(updated));
+      return updated;
+    });
+
+    // ✅ Add to history only if ID not already logged
+    setOrderHistory(prev => {
+      const exists = prev.find(o => o.id === newOrder.id);
+      const updated = exists ? prev : [...prev, newOrder];
+      localStorage.setItem('orderHistory', JSON.stringify(updated));
       return updated;
     });
   };
 
-  // ✅ Update KOT status
+  // ✅ Status update for KOT + history
   const updateKOTStatus = (orderId, newStatus) => {
-    setKOTList((prev) => {
-      const updated = prev.map((order) =>
+    setKOTList(prev => {
+      const updated = prev.map(order =>
         order.id === orderId ? { ...order, status: newStatus } : order
       );
-      localStorage.setItem("kotList", JSON.stringify(updated));
+      localStorage.setItem('kotList', JSON.stringify(updated));
+      return updated;
+    });
+
+    setOrderHistory(prev => {
+      const updated = prev.map(order =>
+        order.id === orderId ? { ...order, status: newStatus } : order
+      );
+      localStorage.setItem('orderHistory', JSON.stringify(updated));
       return updated;
     });
   };
 
-  // ✅ Update and persist full KOT list
-  const setAndPersistKOTList = (newList) => {
-    setKOTList(newList);
-    localStorage.setItem("kotList", JSON.stringify(newList));
-  };
-
-  // ✅ Record restock activity
-  const recordRestock = (item, qty) => {
-    const log = { item, qty: parseInt(qty), time: new Date().toLocaleString() };
-    setRestockHistory((prev) => {
-      const updated = [...prev, log];
-      localStorage.setItem("restockHistory", JSON.stringify(updated));
+  // ✅ Archive + mark as Paid
+  const archiveOrder = (order) => {
+    setOrderHistory(prev => {
+      const updated = prev.map(o =>
+        o.id === order.id ? { ...o, status: 'Paid' } : o
+      );
+      localStorage.setItem('orderHistory', JSON.stringify(updated));
       return updated;
     });
   };
 
-  // ✅ Generate PDF report for stock
-  const generateStockReport = () => {
-    const doc = new jsPDF();
-    doc.text("📦 Stock Report", 10, 10);
-    let y = 20;
-    for (const [item, qty] of Object.entries(stock)) {
-      doc.text(`${item}: ${qty}`, 10, y);
-      y += 10;
-    }
-    doc.save("stock_report.pdf");
+  const archiveOrders = (ordersToMarkPaid) => {
+    setOrderHistory(prev => {
+      const updated = prev.map(o => {
+        const matched = ordersToMarkPaid.find(ord => ord.id === o.id);
+        return matched ? { ...o, status: 'Paid' } : o;
+      });
+      localStorage.setItem('orderHistory', JSON.stringify(updated));
+      return updated;
+    });
   };
 
-  // ✅ Final shared context value
+  const setAndPersistKOTList = (list) => {
+    setKOTList(list);
+    localStorage.setItem('kotList', JSON.stringify(list));
+  };
+
   return (
     <UserContext.Provider
       value={{
-        user,
-        role,
-        table,
-        setTable,
-        orders,
-        setOrders,
-        menu,
-        login,
-        logout,
-        tableStatuses,
-        updateTableStatus,
-        kotList,
-        setKOTList: setAndPersistKOTList,
-        addOrderToKOT,
-        updateKOTStatus,
-        stock,
-        setStock,
-        ingredientMap,
-        deductStock,
-        recordRestock,
-        restockHistory,
-        generateStockReport
+        user, role, table, setTable,
+        orders, setOrders,
+        menu, login, logout,
+        tableStatuses, updateTableStatus,
+        kotList, setKOTList: setAndPersistKOTList,
+        addOrderToKOT, updateKOTStatus,
+        stock, setStock, ingredientMap, deductStock,
+        recordRestock, restockHistory,
+        generateStockReport,
+        orderHistory, archiveOrder, archiveOrders
       }}
     >
       {children}
@@ -214,5 +222,4 @@ export function UserProvider({ children }) {
   );
 }
 
-// ✅ Hook to use context
 export const useUser = () => useContext(UserContext);
