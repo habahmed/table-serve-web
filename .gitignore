@@ -1,0 +1,39 @@
+# ----------------------------------------------------------------------
+# 1. DEPENDENCIES & ARTIFACTS
+# ----------------------------------------------------------------------
+# Main dependency folders
+/node_modules
+/client/node_modules
+/server/node_modules
+
+# Package Manager lock/cache files
+.pnp
+.pnp.js
+.pnpm-debug.log*
+
+# ----------------------------------------------------------------------
+# 2. BUILD & COMPILED OUTPUTS
+# ----------------------------------------------------------------------
+# Build directories for the root and sub-projects
+/build
+/dist
+/client/build
+/client/dist
+/coverage
+
+# ----------------------------------------------------------------------
+# 3. LOGS, CACHE, and TEMP files
+# ----------------------------------------------------------------------
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS and Editor Specific Files
+.DS_Store
+
+# ----------------------------------------------------------------------
+# 4. ENVIRONMENT VARIABLES (Keep secrets local)
+# ----------------------------------------------------------------------
+.env
+.env.local
+.env.*.local

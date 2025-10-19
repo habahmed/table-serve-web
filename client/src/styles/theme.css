@@ -1,0 +1,32 @@
+/* ✅ Light mode defaults */
+body {
+  background-color: #ffffff;
+  color: #000000;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* ✅ Dark mode overrides */
+.dark-mode body {
+  background-color: #121212;
+  color: #ffffff;
+}
+
+/* Optional: Dark mode enhancements */
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4 {
+  color: #f1f1f1;
+}
+
+.dark-mode button {
+  background-color: #333;
+  color: #fff;
+}
+
+.dark-mode .card,
+.dark-mode .box,
+.dark-mode .panel {
+  background-color: #1e1e1e;
+  color: #fff;
+  border: 1px solid #444;
+}

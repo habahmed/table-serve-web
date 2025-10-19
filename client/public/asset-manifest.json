@@ -1,0 +1,19 @@
+{
+  "files": {
+    "main.css": "/habahmed/table-serve-web/static/css/main.627b5368.css",
+    "main.js": "/habahmed/table-serve-web/static/js/main.0bbaaa6f.js",
+    "static/js/239.98903dec.chunk.js": "/habahmed/table-serve-web/static/js/239.98903dec.chunk.js",
+    "static/js/977.1d68ef90.chunk.js": "/habahmed/table-serve-web/static/js/977.1d68ef90.chunk.js",
+    "static/js/455.28f82be1.chunk.js": "/habahmed/table-serve-web/static/js/455.28f82be1.chunk.js",
+    "index.html": "/habahmed/table-serve-web/index.html",
+    "main.627b5368.css.map": "/habahmed/table-serve-web/static/css/main.627b5368.css.map",
+    "main.0bbaaa6f.js.map": "/habahmed/table-serve-web/static/js/main.0bbaaa6f.js.map",
+    "239.98903dec.chunk.js.map": "/habahmed/table-serve-web/static/js/239.98903dec.chunk.js.map",
+    "977.1d68ef90.chunk.js.map": "/habahmed/table-serve-web/static/js/977.1d68ef90.chunk.js.map",
+    "455.28f82be1.chunk.js.map": "/habahmed/table-serve-web/static/js/455.28f82be1.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.627b5368.css",
+    "static/js/main.0bbaaa6f.js"
+  ]
+}

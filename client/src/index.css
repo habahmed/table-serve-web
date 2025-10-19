@@ -1,0 +1,67 @@
+/* src/index.css */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
+}
+/* ✅ Default Light Mode */
+body {
+  background-color: #ffffff;
+  color: #000000;
+  transition: all 0.3s ease;
+}
+
+.dark-mode body {
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.dark-mode button {
+  background-color: #333;
+  color: #fff;
+}
+
+.dark-mode h2, .dark-mode h3 {
+  color: #f1f1f1;
+}
+
+/* Optional extras */
+.dark-mode .card {
+  background-color: #222;
+  color: #fff;
+}
+
+
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  overflow-x: auto;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  h2, h3 {
+    font-size: 1.25rem;
+  }
+  button {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  table, th, td {
+    font-size: 0.8rem;
+  }
+}

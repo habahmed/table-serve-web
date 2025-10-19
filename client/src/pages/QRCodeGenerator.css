@@ -1,0 +1,12 @@
+/* ✅ src/pages/QRCodeGenerator.css */
+.qr-container {
+  padding: 20px;
+  text-align: center;
+}
+
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px;
+  justify-items: center;
+}
