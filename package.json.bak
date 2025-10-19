@@ -46,7 +46,7 @@
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://habahmed: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@github.com/habahmed/table-serve-web.git"
+    "url": "git+https://github.com/habahmed/table-serve-web.git"
   },
   "keywords": [],
   "author": "",
