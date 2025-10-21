@@ -4,14 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 
 const users = [
-  { username: 'habeeb', role: 'owner' },
-  { username: 'azhar', role: 'kitchenmanager' },
-  { username: 'shree', role: 'servicemanager' },
-  { username: 'avinash', role: 'cashier' },
-  { username: 'pyari', role: 'waiter' }
+  { username: 'mujeeb', role: 'admin' },
+  { username: 'majeed', role: 'admin' },
+  { username: 'rafeeq', role: 'admin' },
+  { username: 'shoiab', role: 'admin' },
+  { username: 'qaiser', role: 'admin' },
+  { username: 'kitchen', role: 'kitchenmanager' },
+  { username: 'kashif', role: 'servicemanager' },
+  { username: 'cashier', role: 'cashier' },
+  { username: 'w1', role: 'waiter' },
+  { username: 'w2', role: 'waiter' }
 ];
 
-const roles = ['owner', 'kitchenmanager', 'servicemanager', 'cashier', 'waiter'];
+const roles = ['admin', 'kitchenmanager', 'servicemanager', 'cashier', 'waiter'];
 
 export default function LoginPage() {
   const navigate = useNavigate();

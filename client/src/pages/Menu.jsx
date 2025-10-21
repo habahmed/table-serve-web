@@ -23,7 +23,7 @@ export default function Menu() {
           <ul>
             {items.map((item, index) => (
               <li key={index}>
-                {item.name} — ₹{item.price}
+                {item.name} — £{item.price}
               </li>
             ))}
           </ul>

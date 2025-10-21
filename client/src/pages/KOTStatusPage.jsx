@@ -6,7 +6,7 @@ import { useUser } from '../context/UserContext';
 export default function KOTStatusPage() {
   const { kotList, updateKOTStatus, role, logout, setKOTList } = useUser();
   const navigate = useNavigate();
-  const canUpdateStatus = role === 'kitchenmanager' || role === 'owner';
+  const canUpdateStatus = role === 'kitchenmanager' || role === 'admin' || role === 'servicemanager';
   const statusFlow = ['Pending', 'Accepted', 'Preparing', 'Ready to Serve', 'Out for Delivery', 'Completed'];
 
   const [searchTerm, setSearchTerm] = useState('');
