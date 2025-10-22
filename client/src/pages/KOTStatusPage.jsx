@@ -1,4 +1,4 @@
-// ✅ /src/pages/KOTStatusPage.jsx
+// ✅ /src/pages/KOTStatusPage.jsx (FIXED: Waiter/Service permission check for update)
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -6,6 +6,7 @@ import { useUser } from '../context/UserContext';
 export default function KOTStatusPage() {
   const { kotList, updateKOTStatus, role, logout, setKOTList } = useUser();
   const navigate = useNavigate();
+  // Manager/Admin/Kitchen Manager can update status. Waiter can ONLY view (access granted by App.js)
   const canUpdateStatus = role === 'kitchenmanager' || role === 'admin' || role === 'servicemanager';
   const statusFlow = ['Pending', 'Accepted', 'Preparing', 'Ready to Serve', 'Out for Delivery', 'Completed'];
 
@@ -19,6 +20,7 @@ export default function KOTStatusPage() {
   useEffect(() => {
     if (kotList.length > prevKOTLength.current) {
       if (sound.current) {
+        // Assuming /alert.mp3 exists
         sound.current.play().catch(() => {});
       }
     }
@@ -38,6 +40,7 @@ export default function KOTStatusPage() {
 
   const getNextStatuses = (current) => {
     const index = statusFlow.indexOf(current);
+    // Only Kitchen Manager/Admin can push status forward from the current step
     return statusFlow.slice(index);
   };
 
@@ -103,8 +106,13 @@ export default function KOTStatusPage() {
           <option value="">All Statuses</option>
           {statusFlow.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <button onClick={handleExport}>📤 Export CSV</button>
-        <button onClick={handleMarkAllComplete}>✅ Mark All Completed</button>
+        {/* Only Admin/Manager/Cashier needs Export and Mark All Complete */}
+        {(role === 'admin' || role === 'servicemanager' || role === 'cashier') && (
+            <>
+                <button onClick={handleExport}>📤 Export CSV</button>
+                <button onClick={handleMarkAllComplete}>✅ Mark All Completed</button>
+            </>
+        )}
       </div>
 
       {/* 🔢 Status Count */}
@@ -147,6 +155,7 @@ export default function KOTStatusPage() {
                   <td>
                     <select
                       value={order.status}
+                      // Allow Kitchen Manager/Admin to update status
                       onChange={e => updateKOTStatus(order.id, e.target.value)}
                     >
                       {getNextStatuses(order.status).map(status => (

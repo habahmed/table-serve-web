@@ -1,4 +1,4 @@
-// ✅ src/pages/BillingPage.jsx (FINAL FIXED: Discount Loop, Archive Read Errors, CSV Errors)
+// ✅ src/pages/BillingPage.jsx (FINAL FIXED: Discount Loop, Archive Read Errors, CSV Errors, and TakeAway Name)
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
@@ -15,7 +15,8 @@ export default function BillingPage() {
     setKOTList,
     updateTableStatus,
     logout,
-    archiveOrder
+    archiveOrder,
+    user // Need the current user to exclude staff username from "Customer" tag
   } = useUser();
 
   const PRESET_DISCOUNTS = [5, 8, 10, 15, 20, 25, 30, 35, 40, 45, 50];
@@ -124,7 +125,8 @@ export default function BillingPage() {
       },
       total: finalTotal, // Net total (no toFixed here)
       time: new Date().toLocaleString(),
-      payment: paymentModes[tableId] || 'N/A'
+      payment: paymentModes[tableId] || 'N/A',
+      placedBy: completedOrders[0].placedBy // ✅ ARCHIVE PLACED BY (Customer Name or Staff Username)
     };
     const updatedBills = [...completedBills, bill];
     setCompletedBills(updatedBills);
@@ -137,7 +139,7 @@ export default function BillingPage() {
     setPaymentModes(prev => { delete prev[tableId]; return { ...prev }; });
   };
 
-  // ✅ FIXED BUG 3: Export Bills to CSV (using safe accessor)
+  // ✅ FIXED BUG 3: Export Bills to CSV (using safe accessor) - ADDED PLACED BY
   const exportBillsToCSV = () => {
     if (completedBills.length === 0) {
       alert("No completed bills to export.");
@@ -146,7 +148,7 @@ export default function BillingPage() {
 
     const headers = [
       "Bill ID", "Table", "Time", "SubTotal (Gross)", "Discount Type",
-      "Discount Value", "Discount Amount", "Total (Net)", "Payment Mode", "Items Ordered"
+      "Discount Value", "Discount Amount", "Total (Net)", "Payment Mode", "Placed By", "Items Ordered" // ✅ ADDED Placed By Header
     ];
 
     const csvRows = completedBills.map((bill, index) => {
@@ -167,6 +169,7 @@ export default function BillingPage() {
         discount.amount,
         bill.total.toFixed(2),
         bill.payment,
+        `"${bill.placedBy || 'N/A'}"`, // ✅ ADDED PLACED BY DATA
         `"${itemsString}"`
       ].join(',');
     });
@@ -187,16 +190,26 @@ export default function BillingPage() {
     document.body.removeChild(link);
   };
 
-
-  const downloadBill = (tableId, items, subTotal, finalTotal, discount) => {
+  // ✅ UPDATED downloadBill to include placedBy
+  const downloadBill = (tableId, items, subTotal, finalTotal, discount, placedBy) => {
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text(`🧾 Table: ${tableId}`, 10, 10);
+    doc.text(`🧾 Bill - Table: ${tableId}`, 10, 10);
     let y = 20;
+
+    // ✅ Display Customer Name for TakeAway orders
+    if (tableId.startsWith('TakeAway') && placedBy) {
+      doc.setFontSize(12);
+      doc.text(`👤 Customer: ${placedBy}`, 10, y);
+      y += 8;
+    }
+
+    doc.setFontSize(10);
     items.forEach(item => {
       doc.text(`${item.name} x ${item.quantity} @ ₹${item.price}`, 10, y);
-      y += 8;
+      y += 6;
     });
+    doc.setFontSize(16);
     doc.text(`---------------------------------------`, 10, y + 2);
     doc.text(`Sub-Total: ₹${subTotal.toFixed(2)}`, 10, y + 10);
     if (discount.amount > 0) {
@@ -257,6 +270,10 @@ export default function BillingPage() {
           const allItems = orders.flatMap(order => order.items);
           const subTotal = getOrderTotal(allItems);
 
+          // ✅ Get placedBy and room for conditional display/PDF
+          const [room, ] = tableId.split(' - ');
+          const placedBy = orders[0]?.placedBy;
+
           // Apply discount live for display
           const { finalTotal, discountAmount, discountType, discountValue } = applyDiscount(tableId, subTotal);
 
@@ -269,6 +286,11 @@ export default function BillingPage() {
               backgroundColor: '#f8f9fa'
             }}>
               <h3>🪑 Table: {tableId}</h3>
+              {/* ✅ DISPLAY CUSTOMER NAME FOR TAKEAWAY ORDERS */}
+              {room === 'TakeAway' && placedBy && (
+                 <p style={{marginTop: -10, fontStyle: 'italic'}}>Customer/Order Placed By: {placedBy}</p>
+              )}
+
               {/* Item List */}
               {allItems.map((item, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
@@ -370,7 +392,8 @@ export default function BillingPage() {
               {/* Actions */}
               <div style={{ marginTop: 15, display: 'flex', gap: 10 }}>
                 <button
-                    onClick={() => downloadBill(tableId, allItems, subTotal, finalTotal, { type: discountType, value: discountValue, amount: discountAmount })}
+                    // ✅ Passed placedBy to downloadBill
+                    onClick={() => downloadBill(tableId, allItems, subTotal, finalTotal, { type: discountType, value: discountValue, amount: discountAmount }, placedBy)}
                     style={{ backgroundColor: '#17a2b8', color: 'white' }}
                 >
                     🖨️ Print/PDF
@@ -414,6 +437,7 @@ export default function BillingPage() {
                 }}>
                   <b>🪑 Table:</b> {bill.table} | <b>Total:</b> ₹{bill.total.toFixed(2)} (Sub: ₹{(bill.subTotal || bill.total).toFixed(2)})<br />
                   <small>
+                    Placed By: {bill.placedBy || 'N/A'} | {/* Display Placed By/Customer Name */}
                     Discount: {discount.value}{discount.type === 'percent' ? '%' : '₹'} (-₹{discount.amount.toFixed(2)}) |
                     Payment: {bill.payment} | Time: {bill.time}
                   </small>

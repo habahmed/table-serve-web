@@ -26,6 +26,22 @@ export default function Dashboard() {
     Cleaning: '#fd7e14'
   };
 
+  // --- START: Role-Based Dashboard Logic ---
+    // Ensure Kitchen and Waiter are redirected to their primary view if they land here
+    useEffect(() => {
+      if (role === 'kitchenmanager') {
+        navigate('/kot-status', { replace: true });
+      } else if (role === 'waiter') {
+        navigate('/table-status', { replace: true });
+      }
+    }, [role, navigate]);
+
+    // If user is redirected, don't render the complex charts
+    if (role === 'kitchenmanager' || role === 'waiter') {
+      return <div style={{padding: 20}}>Loading...</div>; // Render simple placeholder during redirect
+    }
+    // --- END: Role-Based Dashboard Logic ---
+
   // 🧮 KOT Summary (kept as is, depends on kotList which is a flat array)
   useEffect(() => {
     const counts = kotList.reduce((acc, order) => {
@@ -85,7 +101,7 @@ export default function Dashboard() {
         <button onClick={() => navigate('/order-history')}>📊 Order History</button>
         <button onClick={() => navigate('/billing')}>💵 Billing</button>
         <button onClick={() => navigate('/procurement')}>🚚 Procurement</button>
-        {['owner', 'kitchenmanager', 'cashier'].includes(role) && (
+        {['admin', 'kitchenmanager', 'cashier'].includes(role) && (
           <button onClick={() => navigate('/online-orders')}>🌐🛒 Online Orders</button>
         )}
       </div>
