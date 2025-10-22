@@ -1,4 +1,4 @@
-// ✅ /src/pages/Procurement.jsx
+// ✅ /src/pages/Procurement.jsx (Full Implementation)
 import React, { useState } from 'react';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +23,8 @@ export default function Procurement() {
     Object.entries(addQty).forEach(([item, qty]) => {
       const quantity = parseFloat(qty);
       if (!isNaN(quantity) && quantity > 0) {
-        updated[item] = (updated[item] || 0) + quantity;
+        // Ensure initial stock value is treated as a number
+        updated[item] = (parseFloat(updated[item]) || 0) + quantity;
         recordRestock(item, quantity);
       }
     });
@@ -48,8 +49,8 @@ export default function Procurement() {
   const lowItems = Object.entries(stock).filter(([_, qty]) => qty <= 2);
 
   const handleAddNewItem = () => {
-    if (!newItem.trim()) return;
-    setStock(prev => ({ ...prev, [newItem]: 0 }));
+    if (!newItem.trim() || stock[newItem.trim()]) return; // Prevent adding empty or duplicate item
+    setStock(prev => ({ ...prev, [newItem.trim()]: 0 }));
     setNewItem('');
   };
 
@@ -57,6 +58,7 @@ export default function Procurement() {
     const updated = { ...stock };
     delete updated[item];
     setStock(updated);
+    setDeleteConfirm(null);
   };
 
   return (
@@ -76,9 +78,9 @@ export default function Procurement() {
 
       {/* 🔘 Actions */}
       <div style={{ margin: '15px 0', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>
         <button onClick={handleUpdateStock}>🔄 Update Stock</button>
         <button onClick={generateStockReport}>📄 Download Report</button>
-        <button onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>
       </div>
 
       {/* ➕ Add New Ingredient */}
@@ -88,6 +90,7 @@ export default function Procurement() {
           placeholder="New Ingredient"
           value={newItem}
           onChange={e => setNewItem(e.target.value)}
+          style={{ padding: 8, marginRight: 5 }}
         />
         <button onClick={handleAddNewItem}>➕ Add</button>
       </div>
@@ -136,11 +139,31 @@ export default function Procurement() {
 
       {/* 🔐 Confirm Delete Dialog */}
       {deleteConfirm && (
-        <div style={{ background: '#eee', padding: 10, marginTop: 10 }}>
-          <b>Confirm delete:</b> {deleteConfirm}
-          <div style={{ marginTop: 10 }}>
-            <button onClick={() => handleDeleteItem(deleteConfirm)}>Yes</button>
-            <button onClick={() => setDeleteConfirm(null)}>Cancel</button>
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#fff',
+          padding: 20,
+          borderRadius: 8,
+          boxShadow: '0 0 10px rgba(0,0,0,0.5)',
+          zIndex: 1000 // Ensure it's on top
+        }}>
+          <b style={{ display: 'block', marginBottom: 10 }}>Confirm delete:</b>
+          <span style={{ fontWeight: 'normal' }}>{deleteConfirm}</span>
+          <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => handleDeleteItem(deleteConfirm)}
+              style={{ backgroundColor: '#dc3545', color: 'white' }}
+            >
+              Yes, Delete
+            </button>
+            <button
+              onClick={() => setDeleteConfirm(null)}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
@@ -151,7 +174,7 @@ export default function Procurement() {
         <p>No restock records.</p>
       ) : (
         <table border="1" cellPadding="6" style={{ width: '100%' }}>
-          <thead style={{ backgroundColor: 'black' }}>
+          <thead style={{ backgroundColor: '#333', color: '#fff' }}>
             <tr>
               <th>#</th>
               <th>Item</th>
