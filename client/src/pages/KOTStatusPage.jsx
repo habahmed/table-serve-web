@@ -7,7 +7,7 @@ export default function KOTStatusPage() {
   // ✅ FIX 1: Ensure 'user' is destructured from useUser()
   const { kotList, updateKOTStatus, role, logout, setKOTList, user } = useUser();
   const navigate = useNavigate();
-  const canUpdateStatus = role === 'kitchenmanager' || role === 'owner';
+  const canUpdateStatus = role === 'kitchenmanager' || role === 'admin' || role === 'servicemanager';
   const statusFlow = ['Pending', 'Accepted', 'Preparing', 'Ready to Serve', 'Out for Delivery', 'Completed'];
 
   const [searchTerm, setSearchTerm] = useState('');

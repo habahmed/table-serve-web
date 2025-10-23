@@ -138,6 +138,7 @@ export default function TableStatus() {
           links.push(<button key="pending" onClick={() => navigate('/pending-orders')}>📋 Pending Orders</button>);
       }
       links.push(<button key="menu" onClick={() => navigate('/menu')}>🍽️ Menu List</button>);
+      links.push(<button key="kotstatus" onClick={() => navigate('/kot-status')}>🧾 KOT Status</button>);
       links.push(<button key="logout" onClick={logout}>🚪 Logout</button>);
       return links;
   };
@@ -206,7 +207,7 @@ export default function TableStatus() {
                     if (status === 'Available') color = '#28a745';
                     else if (status === 'Occupied') color = '#dc3545';
                     else if (status === 'Reserved') color = '#ffc107';
-                    else if (status === 'Cleaning') color = '#007bff';
+                    else if (status === 'Cleaning') color = '#FF8000';
 
                     return (
                         <div
