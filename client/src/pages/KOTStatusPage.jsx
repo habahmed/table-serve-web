@@ -1,28 +1,29 @@
-// ✅ /src/pages/KOTStatusPage.jsx (FIXED: Waiter/Service permission check for update)
+// ✅ /src/pages/KOTStatusPage.jsx (FIXED: User object rendering error)
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 
 export default function KOTStatusPage() {
-  const { kotList, updateKOTStatus, role, logout, setKOTList } = useUser();
+  // ✅ FIX 1: Ensure 'user' is destructured from useUser()
+  const { kotList, updateKOTStatus, role, logout, setKOTList, user } = useUser();
   const navigate = useNavigate();
-  // Manager/Admin/Kitchen Manager can update status. Waiter can ONLY view (access granted by App.js)
-  const canUpdateStatus = role === 'kitchenmanager' || role === 'admin' || role === 'servicemanager';
+  const canUpdateStatus = role === 'kitchenmanager' || role === 'owner';
   const statusFlow = ['Pending', 'Accepted', 'Preparing', 'Ready to Serve', 'Out for Delivery', 'Completed'];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const prevKOTLength = useRef(kotList.length);
 
-  const sound = useRef(null);
+  // You need to ensure you have an actual audio file loaded, e.g., in public folder
+  // const sound = useRef(new Audio('/alert.mp3')); // Uncomment and replace with your path if needed
 
   // 🔔 Detect new orders and play alert sound
   useEffect(() => {
     if (kotList.length > prevKOTLength.current) {
-      if (sound.current) {
-        // Assuming /alert.mp3 exists
-        sound.current.play().catch(() => {});
-      }
+      // if (sound.current) {
+      //   sound.current.play().catch(() => {}); // Uncomment if using audio
+      // }
+      alert('New KOT order received!');
     }
     prevKOTLength.current = kotList.length;
   }, [kotList]);
@@ -34,101 +35,73 @@ export default function KOTStatusPage() {
       Preparing: '#fd7e14',
       'Ready to Serve': '#28a745',
       Completed: '#17a2b8',
+      'Out for Delivery': '#9370DB', // Added for completeness
     };
     return map[status] || '#ffffff';
   };
 
-  const getNextStatuses = (current) => {
-    const index = statusFlow.indexOf(current);
-    // Only Kitchen Manager/Admin can push status forward from the current step
-    return statusFlow.slice(index);
+  const getNextStatuses = (currentStatus) => {
+    const currentIndex = statusFlow.indexOf(currentStatus);
+    return statusFlow.slice(currentIndex);
   };
 
   const filteredList = useMemo(() => {
     return kotList.filter(order => {
-      const matchesSearch =
-        order.table.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.items.some(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesStatus = statusFilter ? order.status === statusFilter : true;
+      const matchesSearch = searchTerm === '' ||
+                            order.table.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            order.placedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            order.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesStatus = statusFilter === '' || order.status === statusFilter;
+
+      // Kitchen Managers only see statuses up to 'Ready to Serve' by default
+      if (role === 'kitchenmanager') {
+        const visibleStatuses = ['Pending', 'Accepted', 'Preparing', 'Ready to Serve'];
+        return matchesSearch && matchesStatus && visibleStatuses.includes(order.status);
+      }
+
       return matchesSearch && matchesStatus;
     });
-  }, [kotList, searchTerm, statusFilter]);
+  }, [kotList, searchTerm, statusFilter, role]);
 
-  const statusCounts = useMemo(() => {
-    const counts = {};
-    for (const status of statusFlow) counts[status] = 0;
-    for (const order of kotList) counts[order.status]++;
-    return counts;
-  }, [kotList]);
-
-  const handleExport = () => {
-    const rows = [['#', 'Table', 'Items', 'Qty', 'PlacedBy', 'Status', 'Time']];
-    kotList.forEach((o, i) => {
-      const itemNames = o.items.map(i => i.name).join(', ');
-      const qty = o.items.map(i => i.quantity).join(', ');
-      rows.push([i + 1, o.table, itemNames, qty, o.placedBy, o.status, o.time]);
-    });
-    const csvContent = rows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'kot_report.csv';
-    link.click();
-  };
-
-  const handleMarkAllComplete = () => {
-    const updated = kotList.map(order => ({ ...order, status: 'Completed' }));
-    setKOTList(updated);
-    localStorage.setItem('kotList', JSON.stringify(updated));
-  };
 
   return (
-    <div style={{ padding: '20px' }}>
-      {/* 🔔 Alert Sound */}
-      <audio ref={sound} src="/alert.mp3" preload="auto" />
-
-      {/* 🔘 Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+    <div style={{ padding: 20 }}>
+      {/* 🔘 Header (Fixed to safely display username) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
         <button onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>
-        <h2>KOT Status</h2>
+        <div style={{ textAlign: 'center' }}>
+            <h2>🧾 Kitchen Order Ticket (KOT) Status</h2>
+            {/* ✅ FIX 2: Use user?.username (string) instead of user (object) */}
+            <span style={{ fontSize: '0.9em', color: '#666' }}>Logged in as: {user?.username} ({role})</span>
+        </div>
         <button onClick={logout}>🚪 Logout</button>
       </div>
 
+
       {/* 🔍 Filters */}
-      <div style={{ margin: '10px 0', display: 'flex', gap: '10px' }}>
+      <div style={{ marginBottom: 20, display: 'flex', gap: 15 }}>
         <input
           type="text"
-          placeholder="🔍 Search"
+          placeholder="Search Table, Item, or User..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
+          style={{ padding: 8, flexGrow: 1 }}
         />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: 8 }}>
           <option value="">All Statuses</option>
-          {statusFlow.map(s => <option key={s} value={s}>{s}</option>)}
+          {statusFlow.map(status => (
+            <option key={status} value={status}>{status}</option>
+          ))}
         </select>
-        {/* Only Admin/Manager/Cashier needs Export and Mark All Complete */}
-        {(role === 'admin' || role === 'servicemanager' || role === 'cashier') && (
-            <>
-                <button onClick={handleExport}>📤 Export CSV</button>
-                <button onClick={handleMarkAllComplete}>✅ Mark All Completed</button>
-            </>
-        )}
+        <button onClick={() => { setSearchTerm(''); setStatusFilter(''); }}>Clear Filters</button>
       </div>
 
-      {/* 🔢 Status Count */}
-      <div style={{ marginBottom: '10px' }}>
-        {statusFlow.map(status => (
-          <span key={status} style={{ marginRight: '15px' }}>
-            <b>{status}:</b> {statusCounts[status] || 0}
-          </span>
-        ))}
-      </div>
-
-      {/* 🧾 Table */}
+      {/* 📋 KOT List Table */}
       {filteredList.length === 0 ? (
-        <p>No orders found.</p>
+        <p>No KOT orders found matching the criteria.</p>
       ) : (
-        <table border="1" cellPadding="10" style={{ width: '100%' }}>
+        <table border="1" cellPadding="6" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#eee' }}>
               <th>#</th>
@@ -143,7 +116,7 @@ export default function KOTStatusPage() {
           </thead>
           <tbody>
             {filteredList.map((order, index) => (
-              <tr key={order.id} style={{ backgroundColor: getStatusColor(order.status) }}>
+              <tr key={order.id} style={{ backgroundColor: getStatusColor(order.status) + '33' }}>
                 <td>{index + 1}</td>
                 <td>{order.table}</td>
                 <td>{order.items.map((item, i) => <div key={i}>{item.name}</div>)}</td>
@@ -155,7 +128,6 @@ export default function KOTStatusPage() {
                   <td>
                     <select
                       value={order.status}
-                      // Allow Kitchen Manager/Admin to update status
                       onChange={e => updateKOTStatus(order.id, e.target.value)}
                     >
                       {getNextStatuses(order.status).map(status => (

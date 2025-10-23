@@ -1,15 +1,25 @@
-// ✅ src/pages/TableStatus.jsx (FIXED: Reverting to Room -> Table Architecture)
+// ✅ src/pages/TableStatus.jsx (FINAL FIX: Single source of truth for KOT/Status update)
 import React, { useState, useMemo } from 'react';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import './TableStatus.css'; // Ensure this CSS file exists
 
 export default function TableStatus() {
-  const { tableStatuses, updateTableStatus, menu, addOrderToKOT, user, logout, role, ROOM_NAMES } = useUser();
+  // ✅ Accessing all necessary state and functions
+  const {
+    tableStatuses,
+    updateTableStatus,
+    menu,
+    addOrderToKOT,
+    user, // user is the object {username, role}
+    logout,
+    role,
+    ROOM_NAMES // Accessing ROOM_NAMES from context for clean code
+  } = useUser();
+
   const navigate = useNavigate();
 
   // --- STATE FOR ROOM/TABLE SELECTION ---
-  // selectedRoom is now used to toggle the view between Rooms and Tables
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedTablePart, setSelectedTablePart] = useState(null); // The table number (e.g., 'T1')
   const [selectedItems, setSelectedItems] = useState({});
@@ -17,41 +27,37 @@ export default function TableStatus() {
   const [takeAwayName, setTakeAwayName] = useState('');
 
   // --- Derived State ---
-  // Full ID combines room and table part
   const selectedTableId = useMemo(() => {
+    // Correctly creates the combined ID: e.g., "Restaurant - T1"
     return selectedRoom && selectedTablePart ? `${selectedRoom} - ${selectedTablePart}` : null;
   }, [selectedRoom, selectedTablePart]);
 
 
   // --- Handlers ---
 
-  // Handles clicking on a Room tile (Step 1)
   const handleSelectRoom = (roomName) => {
     setSelectedRoom(roomName);
-    setSelectedTablePart(null); // Clear table selection when changing rooms
+    setSelectedTablePart(null);
     setShowMenu(false);
     setSelectedItems({});
   };
 
-  // Handles clicking on a Table tile (Step 2)
   const handleSelectTable = (tablePart, status) => {
     setSelectedTablePart(tablePart);
 
-    // Show menu if the table is currently occupied or if we are about to take an order
+    // Show menu if the table is occupied or available
     if (status === 'Occupied' || status === 'Available') {
       setShowMenu(true);
     } else {
       setShowMenu(false);
     }
-    setSelectedItems({}); // Clear selection for new table interaction
+    setSelectedItems({});
   };
 
-  // Handles clicking on an Available/Occupied status button
   const handleStatusUpdate = (newStatus) => {
     if (selectedRoom && selectedTablePart) {
       updateTableStatus(selectedRoom, selectedTablePart, newStatus);
     }
-    // Clear selection if setting to Available/Cleaning
     if (newStatus === 'Available' || newStatus === 'Cleaning') {
         setSelectedTablePart(null);
         setShowMenu(false);
@@ -70,6 +76,7 @@ export default function TableStatus() {
       if (quantity === 0) return sum;
       const [category, index] = itemKey.split('|');
       const item = menu[category][parseInt(index)];
+      if (!item) return sum; // Defensive check
       return sum + (item.price * quantity);
     }, 0).toFixed(2);
   };
@@ -80,19 +87,26 @@ export default function TableStatus() {
       .map(([itemKey, quantity]) => {
         const [category, index] = itemKey.split('|');
         const item = menu[category][parseInt(index)];
+
+        if (!item) {
+             console.error(`Menu item not found for key: ${itemKey}`);
+             return null;
+        }
+
         return {
           name: item.name,
           price: item.price,
           quantity: quantity
         };
-      });
+      })
+      .filter(item => item !== null); // Remove any null items
 
     if (orderItems.length === 0) {
       alert("Please select items to order.");
       return;
     }
 
-    let placedBy = user;
+    let placedBy = user?.username || 'Guest'; // Use optional chaining for safety
     if (selectedRoom === 'TakeAway') {
         if (!takeAwayName) {
             alert("Please enter a customer name for the TakeAway order.");
@@ -101,18 +115,15 @@ export default function TableStatus() {
         placedBy = takeAwayName;
     }
 
+    // CORE FUNCTION CALL: This updates KOT list and Table Status in context
     addOrderToKOT(selectedTableId, orderItems, placedBy);
 
-    // Set table to Occupied if it was Available
-    const currentStatus = tableStatuses[selectedRoom][selectedTablePart];
-    if (currentStatus === 'Available' && selectedRoom !== 'TakeAway') {
-        updateTableStatus(selectedRoom, selectedTablePart, 'Occupied');
-    }
-
-    // Reset UI state
+    // Clean up local state
     setSelectedItems({});
     setTakeAwayName('');
-    // Optionally keep the menu open if the waiter is adding more items
+
+    // ✅ Navigate immediately to KOT status page to confirm order visibility
+    navigate('/kot-status');
   };
 
 
@@ -123,44 +134,58 @@ export default function TableStatus() {
           links.push(<button key="dash" onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>);
       }
       if (role === 'waiter' || role === 'servicemanager') {
-          links.push(<button key="kot" onClick={() => navigate('/kot-status')}>🧾 KOT Status</button>);
+          // Waiters need KOT/Pending Orders access
+          links.push(<button key="pending" onClick={() => navigate('/pending-orders')}>📋 Pending Orders</button>);
       }
       links.push(<button key="menu" onClick={() => navigate('/menu')}>🍽️ Menu List</button>);
       links.push(<button key="logout" onClick={logout}>🚪 Logout</button>);
       return links;
   };
 
-  // --- RENDER LOGIC ---
+  // Common Header component for both Room/Table views
+  const Header = ({ title }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid #eee', paddingBottom: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <h2>{title}</h2>
+            {/* Safely render username string instead of user object */}
+            <span style={{ fontSize: '0.9em', color: '#666' }}>Logged in as: {user?.username} ({role})</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>{getNavLinks()}</div>
+    </div>
+  );
+
 
   const renderRoomView = () => (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center', marginTop: 30 }}>
-        {ROOM_NAMES.map(room => {
-            // Calculate status summary for the room (e.g., how many occupied tables)
-            const roomTables = tableStatuses[room] || {};
-            const occupiedCount = Object.values(roomTables).filter(s => s === 'Occupied').length;
-            const availableCount = Object.values(roomTables).filter(s => s === 'Available').length;
+    <>
+        <Header title="🪑 Select a Room" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center', marginTop: 30 }}>
+            {ROOM_NAMES.map(room => {
+                const roomTables = tableStatuses[room] || {};
+                const occupiedCount = Object.values(roomTables).filter(s => s === 'Occupied').length;
+                const availableCount = Object.values(roomTables).filter(s => s === 'Available').length;
 
-            return (
-                <div
-                    key={room}
-                    onClick={() => handleSelectRoom(room)}
-                    style={{
-                        padding: '30px',
-                        backgroundColor: occupiedCount > 0 ? '#dc3545' : '#28a745',
-                        color: 'white',
-                        borderRadius: 10,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        minWidth: 200,
-                        boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-                    }}
-                >
-                    <h3>{room}</h3>
-                    <p>{occupiedCount} Occupied / {availableCount} Available</p>
-                </div>
-            );
-        })}
-    </div>
+                return (
+                    <div
+                        key={room}
+                        onClick={() => handleSelectRoom(room)}
+                        style={{
+                            padding: '30px',
+                            backgroundColor: occupiedCount > 0 ? '#dc3545' : '#28a745',
+                            color: 'white',
+                            borderRadius: 10,
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            minWidth: 200,
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                        }}
+                    >
+                        <h3>{room}</h3>
+                        <p>{occupiedCount} Occupied / {availableCount} Available</p>
+                    </div>
+                );
+            })}
+        </div>
+    </>
   );
 
   const renderTableView = () => {
@@ -168,13 +193,12 @@ export default function TableStatus() {
 
     return (
         <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <button onClick={() => handleSelectRoom(null)}>⬅️ Back to Rooms</button>
-                <h3>Tables in: {selectedRoom}</h3>
-                <span></span>
-            </div>
+            <Header title={`🪑 Tables in: ${selectedRoom}`} />
 
-            {/* Table Grid */}
+            <button onClick={() => handleSelectRoom(null)} style={{ marginBottom: 20 }}>
+                ⬅️ Back to Rooms
+            </button>
+
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, borderBottom: '1px solid #eee', paddingBottom: 20 }}>
                 {Object.entries(tablesInRoom).map(([tablePart, status]) => {
                     const isSelected = selectedTablePart === tablePart;
@@ -182,7 +206,7 @@ export default function TableStatus() {
                     if (status === 'Available') color = '#28a745';
                     else if (status === 'Occupied') color = '#dc3545';
                     else if (status === 'Reserved') color = '#ffc107';
-                    else if (status === 'Cleaning') color = '#FF8C00';
+                    else if (status === 'Cleaning') color = '#007bff';
 
                     return (
                         <div
@@ -214,30 +238,20 @@ export default function TableStatus() {
 
   return (
     <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
-      {/* 🔘 Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid #eee', paddingBottom: 10 }}>
-        <h2>🪑 Table Status & TakeAway</h2>
-        <div style={{ display: 'flex', gap: 10 }}>{getNavLinks()}</div>
-      </div>
 
-      {/* 🔄 Conditional Rendering for Room/Table View */}
       {!selectedRoom ? renderRoomView() : renderTableView()}
-
 
       {/* Order Panel - Only shown if both Room and Table are selected */}
       {selectedTableId && (
         <div style={{ marginTop: 30, border: '2px solid #333', padding: 20, borderRadius: 10, backgroundColor: '#f9f9f9' }}>
           <h3>Order for: {selectedTableId}</h3>
 
-          {/* Table Status Controls */}
           <div style={{ marginBottom: 15, display: 'flex', gap: 10 }}>
             {['Available', 'Occupied', 'Reserved', 'Cleaning'].map(status => (
               <button
                 key={status}
                 onClick={() => handleStatusUpdate(status)}
-                // Use the correct logic to check current status in the selected room
                 style={{ backgroundColor: status === (tableStatuses[selectedRoom]?.[selectedTablePart]) ? '#007bff' : '#6c757d', color: 'white' }}
-                // Disable Available/Cleaning for TakeAway (orders are finalized)
                 disabled={selectedRoom === 'TakeAway' && (status === 'Available' || status === 'Cleaning')}
               >
                 {status}
@@ -245,7 +259,6 @@ export default function TableStatus() {
             ))}
           </div>
 
-          {/* TakeAway Name Input */}
           {selectedRoom === 'TakeAway' && (
               <div style={{ marginBottom: 15 }}>
                   <label style={{ fontWeight: 'bold' }}>Customer Name:</label>
@@ -260,10 +273,8 @@ export default function TableStatus() {
           )}
 
 
-          {/* Menu Selection */}
           {showMenu && (
             <div>
-              {/* Menu Categories */}
               <div style={{ maxHeight: 400, overflowY: 'auto' }}>
                 {Object.entries(menu).map(([category, items]) => (
                   <div key={category} style={{ marginBottom: 15, padding: 10, border: '1px solid #eee', borderRadius: 5 }}>

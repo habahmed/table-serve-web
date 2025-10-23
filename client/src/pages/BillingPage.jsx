@@ -16,7 +16,8 @@ export default function BillingPage() {
     updateTableStatus,
     logout,
     archiveOrder,
-    user // Need the current user to exclude staff username from "Customer" tag
+    user, // Need the current user to exclude staff username from "Customer" tag
+    role // <--- ADDED ROLE FOR HEADER
   } = useUser();
 
   const PRESET_DISCOUNTS = [5, 8, 10, 15, 20, 25, 30, 35, 40, 45, 50];
@@ -206,17 +207,17 @@ export default function BillingPage() {
 
     doc.setFontSize(10);
     items.forEach(item => {
-      doc.text(`${item.name} x ${item.quantity} @ ₹${item.price}`, 10, y);
+      doc.text(`${item.name} x ${item.quantity} @ £${item.price}`, 10, y);
       y += 6;
     });
     doc.setFontSize(16);
     doc.text(`---------------------------------------`, 10, y + 2);
-    doc.text(`Sub-Total: ₹${subTotal.toFixed(2)}`, 10, y + 10);
+    doc.text(`Sub-Total: £${subTotal.toFixed(2)}`, 10, y + 10);
     if (discount.amount > 0) {
-        doc.text(`Discount (${discount.value}${discount.type === 'percent' ? '%' : '₹'}): -₹${discount.amount.toFixed(2)}`, 10, y + 18);
+        doc.text(`Discount (${discount.value}${discount.type === 'percent' ? '%' : '£'}): -£${discount.amount.toFixed(2)}`, 10, y + 18);
         doc.text(`---------------------------------------`, 10, y + 20);
     }
-    doc.text(`Total Payable: ₹${finalTotal.toFixed(2)}`, 10, y + 28);
+    doc.text(`Total Payable: £${finalTotal.toFixed(2)}`, 10, y + 28);
     doc.text(`Payment Mode: ${paymentModes[tableId] || 'N/A'}`, 10, y + 36);
     doc.save(`bill_${tableId}.pdf`);
   };
@@ -237,10 +238,15 @@ export default function BillingPage() {
 
   return (
     <div style={{ padding: 20, maxWidth: 1000, margin: '0 auto' }}>
-      {/* 🔘 Header */}
+
+      {/* 🔘 Header (FIXED: Safely displaying user and role) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <button onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>
-        <h2>💵 Billing Page</h2>
+        <div style={{ textAlign: 'center' }}>
+            <h2>💵 Billing Page</h2>
+            {/* ✅ FIX: Safely render username string instead of the user object */}
+            <span style={{ fontSize: '0.9em', color: '#666' }}>Logged in as: {user?.username} ({role})</span>
+        </div>
         <button onClick={logout}>🚪 Logout</button>
       </div>
 
@@ -295,14 +301,14 @@ export default function BillingPage() {
               {allItems.map((item, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                   <span>{item.name} x {item.quantity}</span>
-                  <span>₹{(item.quantity * item.price).toFixed(2)}</span>
+                  <span>£{(item.quantity * item.price).toFixed(2)}</span>
                 </div>
               ))}
 
               <hr style={{ margin: '10px 0' }} />
               <h4 style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Sub-Total:</span>
-                <span>₹{subTotal.toFixed(2)}</span>
+                <span>£{subTotal.toFixed(2)}</span>
               </h4>
 
               {/* 💵 DISCOUNT SECTION */}
@@ -313,7 +319,7 @@ export default function BillingPage() {
                 <div style={{ marginBottom: 10, display: 'flex', gap: 10 }}>
                     <input
                         type="number"
-                        placeholder="Discount Amount (₹)"
+                        placeholder="Discount Amount (£)"
                         value={discounts[tableId]?.type === 'amount' ? discounts[tableId]?.value : ''}
                         onChange={(e) => handleDiscountChange(tableId, 'amount', e.target.value)}
                         style={{ width: '40%', padding: 5 }}
@@ -363,7 +369,7 @@ export default function BillingPage() {
                 {/* Discount Summary */}
                 {discountAmount > 0 && (
                     <p style={{ color: '#dc3545', margin: '10px 0 0 0' }}>
-                        Applied Discount: -₹{discountAmount.toFixed(2)}
+                        Applied Discount: -£{discountAmount.toFixed(2)}
                     </p>
                 )}
               </div>
@@ -371,7 +377,7 @@ export default function BillingPage() {
               {/* FINAL TOTAL */}
               <h3 style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #343a40', paddingTop: 10 }}>
                 <span>TOTAL PAYABLE:</span>
-                <span>₹{finalTotal.toFixed(2)}</span>
+                <span>£{finalTotal.toFixed(2)}</span>
               </h3>
 
               {/* Payment Mode */}
@@ -435,10 +441,10 @@ export default function BillingPage() {
                   borderRadius: 6,
                   backgroundColor: '#f0f8ff'
                 }}>
-                  <b>🪑 Table:</b> {bill.table} | <b>Total:</b> ₹{bill.total.toFixed(2)} (Sub: ₹{(bill.subTotal || bill.total).toFixed(2)})<br />
+                  <b>🪑 Table:</b> {bill.table} | <b>Total:</b> £{bill.total.toFixed(2)} (Sub: £{(bill.subTotal || bill.total).toFixed(2)})<br />
                   <small>
                     Placed By: {bill.placedBy || 'N/A'} | {/* Display Placed By/Customer Name */}
-                    Discount: {discount.value}{discount.type === 'percent' ? '%' : '₹'} (-₹{discount.amount.toFixed(2)}) |
+                    Discount: {discount.value}{discount.type === 'percent' ? '%' : '£'} (-£{discount.amount.toFixed(2)}) |
                     Payment: {bill.payment} | Time: {bill.time}
                   </small>
                 </div>

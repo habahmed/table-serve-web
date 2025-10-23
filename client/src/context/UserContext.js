@@ -1,4 +1,4 @@
-// ✅ /src/context/UserContext.js (Final COMPLETE Version with ALL functions in Provider)
+// ✅ /src/context/UserContext.js (FINAL FIX: Independent Sessions & Shared Application State)
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 
@@ -11,14 +11,19 @@ const ROOM_NAMES = [
 ];
 // ---------------------------------
 
-// Helper function to safely parse localStorage items
+// Helper function to safely load state from either Session or Local Storage
 const loadFromStorage = (key, initialValue) => {
+    // Keys that must be isolated to the current tab (Session State)
+    const SESSION_KEYS = ['user', 'role', 'table'];
+
+    // Choose the appropriate storage based on the key
+    const storage = SESSION_KEYS.includes(key) ? sessionStorage : localStorage;
+
     try {
-        const stored = localStorage.getItem(key);
-        // If the key is null or undefined (like 'user' on logout), return initialValue
+        const stored = storage.getItem(key);
         if (stored === null || stored === undefined) return initialValue;
 
-        // Handle specific case for role and table which are stored as raw strings
+        // Handle raw string types vs. JSON objects
         if (key === 'role' || key === 'table') return stored;
 
         return JSON.parse(stored);
@@ -43,11 +48,13 @@ export function UserProvider({ children }) {
 
   const initialStock = { chicken: 50, paneer: 20, spices: 10, butter: 5, cream: 5, riceFlour: 10, tea: 2, milk: 5, Fish: 5, Prawns: 5, Lamb: 5, Mutton: 5, Coffee: 5 };
 
-  // Load all state from storage on mount
+  // Load SESSION STATE from Session Storage (Independent per tab)
   const [user, setUser] = useState(() => loadFromStorage('user', null));
   const [role, setRole] = useState(() => loadFromStorage('role', null));
   const [table, setTable] = useState(() => loadFromStorage('table', null));
-  const [orders, setOrders] = useState([]);
+
+  // Load APPLICATION STATE from Local Storage (Shared across all tabs/users)
+  const [orders, setOrders] = useState([]); // Currently unused
   const [kotList, setKOTList] = useState(() => loadFromStorage('kotList', []));
   const [orderHistory, setOrderHistory] = useState(() => loadFromStorage('orderHistory', []));
   const [onlineOrders, setOnlineOrders] = useState(() => loadFromStorage('onlineOrders', []));
@@ -56,7 +63,7 @@ export function UserProvider({ children }) {
   const [tableStatuses, setTableStatuses] = useState(() => loadFromStorage('tableStatuses', initialTableStatuses));
 
 
-  // --- MENU AND INGREDIENT MAPS (unchanged) ---
+  // --- MENU AND INGREDIENT MAPS (UNCHANGED) ---
   const ingredientMap = {
     'Chicken 65': { chicken: 1, spices: 0.2 }, 'Paneer 65': { paneer: 1, spices: 0.2 },
     'Butter Chicken': { chicken: 1, butter: 0.2, cream: 0.1, spices: 0.2 },
@@ -231,50 +238,100 @@ export function UserProvider({ children }) {
       ]
   };
 
-  // 🔁 Sync across tabs/windows
+  // --- PERSISTENCE EFFECT HOOKS (SAVES APPLICATION STATE TO LOCAL STORAGE) ---
+
+  // 1. Save KOT List
+  useEffect(() => {
+    try {
+      localStorage.setItem('kotList', JSON.stringify(kotList));
+    } catch (e) { console.error("Failed to save kotList:", e); }
+  }, [kotList]);
+
+  // 2. Save Table Statuses
+  useEffect(() => {
+    try {
+      localStorage.setItem('tableStatuses', JSON.stringify(tableStatuses));
+    } catch (e) { console.error("Failed to save tableStatuses:", e); }
+  }, [tableStatuses]);
+
+  // 3. Save Order History
+  useEffect(() => {
+    try {
+      localStorage.setItem('orderHistory', JSON.stringify(orderHistory));
+    } catch (e) { console.error("Failed to save orderHistory:", e); }
+  }, [orderHistory]);
+
+  // 4. Save Stock
+  useEffect(() => {
+    try {
+      localStorage.setItem('stock', JSON.stringify(stock));
+    } catch (e) { console.error("Failed to save stock:", e); }
+  }, [stock]);
+
+  // 5. Save Restock History
+  useEffect(() => {
+    try {
+      localStorage.setItem('restockHistory', JSON.stringify(restockHistory));
+    } catch (e) { console.error("Failed to save restockHistory:", e); }
+  }, [restockHistory]);
+
+  // 6. Save Online Orders
+  useEffect(() => {
+    try {
+      localStorage.setItem('onlineOrders', JSON.stringify(onlineOrders));
+    } catch (e) { console.error("Failed to save onlineOrders:", e); }
+  }, [onlineOrders]);
+
+
+  // --- CROSS-TAB SYNC LISTENER (LISTENS FOR LOCAL STORAGE CHANGES MADE BY OTHER TABS) ---
   useEffect(() => {
     const sync = (e) => {
+      // Only load and update state if the change came from another window for shared data
       if (e.key === 'kotList') setKOTList(loadFromStorage(e.key, []));
       if (e.key === 'orderHistory') setOrderHistory(loadFromStorage(e.key, []));
       if (e.key === 'tableStatuses') setTableStatuses(loadFromStorage(e.key, initialTableStatuses));
       if (e.key === 'onlineOrders') setOnlineOrders(loadFromStorage(e.key, []));
-      if (e.key === 'user') setUser(loadFromStorage(e.key, null));
-      if (e.key === 'role') setRole(e.newValue);
+      if (e.key === 'stock') setStock(loadFromStorage(e.key, initialStock));
+      if (e.key === 'restockHistory') setRestockHistory(loadFromStorage(e.key, []));
+
+      // We explicitly remove the session state updates from this listener.
+      // The session state (user, role, table) is now isolated in Session Storage.
     };
+    // The storage listener will only listen for Local Storage changes now.
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
   }, []);
 
-  // --- USER FUNCTIONS ---
+  // --- USER FUNCTIONS (USES SESSION STORAGE) ---
   const login = (username, role) => {
     const u = { username, role };
     setUser(u); setRole(role);
-    localStorage.setItem('user', JSON.stringify(u));
-    localStorage.setItem('role', role);
+    // Use Session Storage for independent sessions
+    sessionStorage.setItem('user', JSON.stringify(u));
+    sessionStorage.setItem('role', role);
   };
 
   const logout = () => {
     setUser(null); setRole(null); setTable(null);
     setOrders([]);
 
-    localStorage.removeItem('user');
-    localStorage.removeItem('role');
-    localStorage.removeItem('table');
+    // Remove from Session Storage only
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('role');
+    sessionStorage.removeItem('table');
   };
 
   // --- TABLE FUNCTIONS ---
   const updateTableStatus = (roomName, tableId, status) => {
-    setTableStatuses(prev => {
-      const updated = { ...prev, [roomName]: { ...prev[roomName], [tableId]: status } };
-      localStorage.setItem('tableStatuses', JSON.stringify(updated));
-      return updated;
-    });
+    // Rely on the tableStatuses useEffect to persist to Local Storage
+    setTableStatuses(prev => ({ ...prev, [roomName]: { ...prev[roomName], [tableId]: status } }));
   };
 
   const selectTable = (roomName, tableId) => {
     const combinedId = `${roomName} - ${tableId}`;
     setTable(combinedId);
-    localStorage.setItem('table', combinedId);
+    // Use Session Storage for table selection
+    sessionStorage.setItem('table', combinedId);
   };
 
   // --- INVENTORY FUNCTIONS ---
@@ -289,18 +346,13 @@ export function UserProvider({ children }) {
           });
         }
       });
-      localStorage.setItem('stock', JSON.stringify(updated));
-      return updated;
+      return updated; // Saved by stock useEffect
     });
   };
 
   const recordRestock = (item, qty) => {
     const log = { item, qty: parseInt(qty), time: new Date().toLocaleString() };
-    setRestockHistory(prev => {
-      const updated = [...prev, log];
-      localStorage.setItem('restockHistory', JSON.stringify(updated));
-      return updated;
-    });
+    setRestockHistory(prev => [...prev, log]); // Saved by restockHistory useEffect
   };
 
   const generateStockReport = () => {
@@ -321,65 +373,43 @@ export function UserProvider({ children }) {
     };
 
     deductStock(items);
+
     const [roomName, tableId] = tableDisplayId.split(' - ');
     if (roomName && tableId) { updateTableStatus(roomName, tableId, 'Occupied'); }
 
-    setKOTList(prev => {
-      const updated = [...prev, newOrder];
-      localStorage.setItem('kotList', JSON.stringify(updated));
-      return updated;
-    });
-    setOrderHistory(prev => {
-      const exists = prev.find(o => o.id === newOrder.id);
-      const updated = exists ? prev : [...prev, newOrder];
-      localStorage.setItem('orderHistory', JSON.stringify(updated));
-      return updated;
-    });
+    setKOTList(prev => [...prev, newOrder]); // Saved by kotList useEffect
+    setOrderHistory(prev => [...prev, newOrder]); // Saved by orderHistory useEffect
   };
 
-  // ✅ THIS FUNCTION IS THE SOURCE OF THE BUG
   const updateKOTStatus = (orderId, newStatus) => {
     setKOTList(prev => {
-      const updated = prev.map(order =>
+      return prev.map(order =>
         order.id === orderId ? { ...order, status: newStatus } : order
       );
-      localStorage.setItem('kotList', JSON.stringify(updated));
-      return updated;
-    });
+    }); // Saved by kotList useEffect
 
     setOrderHistory(prev => {
-      const updated = prev.map(order =>
+      return prev.map(order =>
         order.id === orderId ? { ...order, status: newStatus } : order
       );
-      localStorage.setItem('orderHistory', JSON.stringify(updated));
-      return updated;
-    });
+    }); // Saved by orderHistory useEffect
   };
 
   const archiveOrder = (order) => {
     setOrderHistory(prev => {
-      const updated = prev.map(o =>
+      return prev.map(o =>
         o.id === order.id ? { ...o, status: 'Paid' } : o
       );
-      localStorage.setItem('orderHistory', JSON.stringify(updated));
-      return updated;
-    });
+    }); // Saved by orderHistory useEffect
   };
 
   const archiveOrders = (ordersToMarkPaid) => {
     setOrderHistory(prev => {
-      const updated = prev.map(o => {
+      return prev.map(o => {
         const matched = ordersToMarkPaid.find(ord => ord.id === o.id);
         return matched ? { ...o, status: 'Paid' } : o;
       });
-      localStorage.setItem('orderHistory', JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const setAndPersistKOTList = (list) => {
-    setKOTList(list);
-    localStorage.setItem('kotList', JSON.stringify(list));
+    }); // Saved by orderHistory useEffect
   };
 
   // --- ONLINE ORDER FUNCTIONS ---
@@ -387,35 +417,27 @@ export function UserProvider({ children }) {
     const newOrder = {
       id: Date.now(), items, placedBy: customerName, time: new Date().toLocaleTimeString(), status: 'Pending'
     };
-    setOnlineOrders(prev => {
-      const updated = [...prev, newOrder];
-      localStorage.setItem('onlineOrders', JSON.stringify(updated));
-      return updated;
-    });
+    setOnlineOrders(prev => [...prev, newOrder]); // Saved by onlineOrders useEffect
   };
 
   const updateOnlineOrderStatus = (orderId, newStatus) => {
     setOnlineOrders(prev => {
-      const updated = prev.map(order =>
+      return prev.map(order =>
         order.id === orderId ? { ...order, status: newStatus } : order
       );
-      localStorage.setItem('onlineOrders', JSON.stringify(updated));
-      return updated;
-    });
+    }); // Saved by onlineOrders useEffect
   };
 
 
-  // --- CONTEXT PROVIDER VALUE (FINAL FIX) ---
+  // --- CONTEXT PROVIDER VALUE ---
   return (
     <UserContext.Provider
       value={{
         user, role, table, setTable, orders, setOrders,
         menu, login, logout,
         tableStatuses, updateTableStatus, selectTable,
-        kotList, setKOTList: setAndPersistKOTList,
-        addOrderToKOT,
-        // ✅ CRITICAL FIX: Include the function here
-        updateKOTStatus,
+        kotList, setKOTList,
+        addOrderToKOT, updateKOTStatus,
         stock, setStock, ingredientMap, deductStock,
         recordRestock, restockHistory,
         generateStockReport,

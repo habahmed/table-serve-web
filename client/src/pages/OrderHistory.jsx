@@ -1,4 +1,4 @@
-// ✅ src/pages/OrderHistory.jsx (Final version with color-coded status badges)
+// ✅ src/pages/OrderHistory.jsx (Fixed: Safe rendering of user object)
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,7 +8,8 @@ import {
 import { useUser } from '../context/UserContext';
 
 export default function OrderHistory() {
-  const { orderHistory, logout } = useUser(); // ✅ Read full order log including completed/paid
+  // ✅ FIX 1: Destructure user and role to access them
+  const { orderHistory, logout, user, role } = useUser();
   const navigate = useNavigate();
   const [granularity, setGranularity] = useState('hour');
   const [filterTable, setFilterTable] = useState('');
@@ -29,10 +30,18 @@ export default function OrderHistory() {
   const chartData = useMemo(() => {
     const buckets = {};
     filteredOrders.forEach(order => {
+      // Logic to correctly bucket time for the chart
       const date = new Date(`1970/01/01 ${order.time}`);
-      const key = granularity === 'hour'
-        ? `${date.getHours()}:00`
-        : `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+      let key;
+      if (granularity === 'hour') {
+        key = `${date.getHours()}:00`;
+      } else if (granularity === 'minute') {
+        key = `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+      } else {
+        // Fallback or future implementation for day/month/year
+        key = order.time;
+      }
+
       buckets[key] = (buckets[key] || 0) + 1;
     });
     return Object.entries(buckets).map(([time, count]) => ({ time, count }));
@@ -76,10 +85,14 @@ export default function OrderHistory() {
 
   return (
     <div style={{ padding: 20 }}>
-      {/* 🔘 Header */}
+      {/* 🔘 Header (Fixed to safely display username) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
         <button onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>
-        <h2>📈 Order History</h2>
+        <div style={{ textAlign: 'center' }}>
+            <h2>📈 Order History</h2>
+            {/* ✅ FIX 2: Use user?.username instead of user */}
+            <span style={{ fontSize: '0.9em', color: '#666' }}>Logged in as: {user?.username} ({role})</span>
+        </div>
         <button onClick={logout}>🚪 Logout</button>
       </div>
 
@@ -89,6 +102,7 @@ export default function OrderHistory() {
           <select value={granularity} onChange={e => setGranularity(e.target.value)}>
             <option value="minute">Minute</option>
             <option value="hour">Hourly</option>
+            {/* Options day/month/year are not fully implemented in chart logic but kept for UI */}
             <option value="day">Day</option>
             <option value="month">Month</option>
             <option value="year">Year</option>

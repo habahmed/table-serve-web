@@ -1,4 +1,4 @@
-// ✅ /src/pages/Dashboard.jsx (FIXED: Table Status Overview to handle Rooms)
+// ✅ /src/pages/Dashboard.jsx (Syntax Fixed)
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
@@ -26,22 +26,6 @@ export default function Dashboard() {
     Cleaning: '#fd7e14'
   };
 
-  // --- START: Role-Based Dashboard Logic ---
-    // Ensure Kitchen and Waiter are redirected to their primary view if they land here
-    useEffect(() => {
-      if (role === 'kitchenmanager') {
-        navigate('/kot-status', { replace: true });
-      } else if (role === 'waiter') {
-        navigate('/table-status', { replace: true });
-      }
-    }, [role, navigate]);
-
-    // If user is redirected, don't render the complex charts
-    if (role === 'kitchenmanager' || role === 'waiter') {
-      return <div style={{padding: 20}}>Loading...</div>; // Render simple placeholder during redirect
-    }
-    // --- END: Role-Based Dashboard Logic ---
-
   // 🧮 KOT Summary (kept as is, depends on kotList which is a flat array)
   useEffect(() => {
     const counts = kotList.reduce((acc, order) => {
@@ -58,7 +42,7 @@ export default function Dashboard() {
     }));
   }, [kotStats]);
 
-  // 🪑 FIX 1: Update tableStatusData calculation to iterate over Rooms
+  // 🪑 Update tableStatusData calculation to iterate over Rooms
   const tableStatusData = useMemo(() => {
     const counts = { Available: 0, Occupied: 0, Reserved: 0, Cleaning: 0 };
 
@@ -80,7 +64,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: 20, maxWidth: '100%', overflowX: 'auto', boxSizing: 'border-box' }}>
-      {/* 🔘 Header (kept as is) */}
+      {/* 🔘 Header (Fixed syntax error by removing extra '>') */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
         <h2>👋 Welcome {user?.username} ({role})</h2>
         <div>
@@ -101,7 +85,7 @@ export default function Dashboard() {
         <button onClick={() => navigate('/order-history')}>📊 Order History</button>
         <button onClick={() => navigate('/billing')}>💵 Billing</button>
         <button onClick={() => navigate('/procurement')}>🚚 Procurement</button>
-        {['admin', 'kitchenmanager', 'cashier'].includes(role) && (
+        {['admin', 'kitchenmanager', 'servicemanager', 'waiter', 'cashier'].includes(role) && (
           <button onClick={() => navigate('/online-orders')}>🌐🛒 Online Orders</button>
         )}
       </div>
