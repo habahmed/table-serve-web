@@ -84,7 +84,7 @@ export default function App() {
         />
 
         {/* Other Routes */}
-        <Route path="/billing" element={<ProtectedRoute allowedRoles={['admin', 'cashier']}><BillingPage /></ProtectedRoute>} />
+        <Route path="/billing" element={<ProtectedRoute allowedRoles={['admin', 'servicemanager', 'cashier']}><BillingPage /></ProtectedRoute>} />
         <Route path="/order-history" element={<ProtectedRoute allowedRoles={['admin', 'servicemanager', 'cashier']}><OrderHistory /></ProtectedRoute>} />
         <Route path="/online-orders" element={<ProtectedRoute allowedRoles={['admin', 'servicemanager', 'cashier', 'kitchenmanager']}><OnlineOrdersPage /></ProtectedRoute>} />
         <Route path="/simulate-online-order" element={<ProtectedRoute allowedRoles={['admin']}><SimulateOnlineOrder /></ProtectedRoute>} />
