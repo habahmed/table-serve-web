@@ -1,3 +1,11 @@
+<<<<<<< HEAD
+# Table Serve Web
+This is my local readme file.
+=======
+# table-serve-web
+This repository is for the web application project.
+>>>>>>> FETCH_HEAD
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
@@ -70,3 +78,6 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
 # table-serve-web
 # 20251021
+=======
+# table-serve-web
+>>>>>>> 5d924e2bc6bbc9b0c717efc264d7b4aeffe08de7
